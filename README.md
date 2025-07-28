@@ -53,6 +53,10 @@ A simple barcode scanning web app built with HTML, JavaScript, and Google Apps S
 
 ---
 
+📸 Demo 
+https://docs.google.com/spreadsheets/d/1jn6_Mq8lWzLkHrGnzdlm6m4RG4o5YZV7qdmsYzOyLdM/edit?usp=sharing
+
+---
 
 ## 👨‍💻 Author
 
