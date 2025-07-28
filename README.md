@@ -69,13 +69,8 @@ A simple barcode scanning web app built with HTML, JavaScript, and Google Apps S
 
 ---
 
-## 📃 License
-
-MIT License
-
----
 
 ## 👨‍💻 Author
 
-[Your Name](https://github.com/yourusername)  
-Feel free to fork, contribute, or ask questions!
+[Kayla Ma](https://github.com/KaylaM786)  
+
