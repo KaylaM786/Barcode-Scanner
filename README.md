@@ -22,36 +22,20 @@ A simple barcode scanning web app built with HTML, JavaScript, and Google Apps S
 ### 1. Google Sheet & Apps Script
 
 1. Create a new [Google Sheet](https://sheets.new)
-2. Rename the first sheet to `Sheet1`
 3. Click **Extensions > Apps Script**
-4. Replace the default code with the contents of `code.gs`
-5. Save the script and name the project
-6. Deploy the script:
+4. Replace the default code with the contents of `Code.gs`
+5. Create a new HTML file named `Index.html` and paste the HTML code in it.
+6. Save the script and name the project
+7. Deploy the script:
    - Go to **Deploy > Test deployments** or **Manage deployments**
    - Set `doGet()` as the entry point
    - Select **"Anyone"** (if needed) under "Execute as"
-
-### 2. HTML Interface
-
-1. In the same Apps Script project, go to **File > New > HTML**
-2. Name it `Index`
-3. Paste in the contents of `index.html`
 
 ### 3. Test It
 
 1. Run `doGet()` as a test or publish the web app
 2. Open the deployed URL on a device with a camera
 3. Start scanning!
-
----
-
-## 🔐 Permissions & Security
-
-- Make sure your script is authorized to access the Google Sheet
-- If deploying for others, use **"Anyone with the link"** or **"Only myself"** as needed
-- HTTPS is recommended for camera access
-
----
 
 ## 📦 Libraries Used
 
