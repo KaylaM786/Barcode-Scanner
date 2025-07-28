@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barcode Scanner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h2 {
+      margin: 20px 0 10px;
+    }
+
+    #container {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      background: black;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #scan-box {
+      position: absolute;
+      border: 3px dashed #ff0000;
+      width: 70%;
+      height: 25%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 6px;
+      box-sizing: border-box;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    #output {
+      margin: 15px 0;
+      font-size: 1.2em;
+      color: #333;
+      text-align: center;
+    }
+
+    .control-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      margin: 10px 0;
+    }
+
+    .control-group label {
+      margin-right: 10px;
+      font-size: 1em;
+    }
+
+    input[type="range"] {
+      width: 180px;
+    }
+
+    button {
+      margin: 10px;
+      padding: 12px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 6px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #list {
+      max-width: 600px;
+      width: 90%;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 12px;
+      margin: 15px auto;
+      font-size: 1em;
+    }
+
+    #codeList {
+      padding-left: 20px;
+    }
+
+    #codeList button {
+    padding: 4px 8px;
+    font-size: 0.85em;
+    }
+  </style>
+</head>
+<body>
+  <h2>Scan Barcode</h2>
+
+  <div id="container">
+    <video id="video" autoplay playsinline></video>
+    <div id="scan-box"></div>
+  </div>
+
+  <div id="output">Waiting for scan...</div>
+
+  <div class="control-group">
+    <label for="zoomRange">Zoom:</label>
+    <input type="range" id="zoomRange" min="1" max="1" step="0.1" value="1" disabled>
+    <button id="torchBtn">Toggle Flashlight</button>
+  </div>
+
+  <div id="list">
+    <strong>Scanned Codes:</strong>
+    <ul id="codeList"></ul>
+  </div>
+
+  <script type="module">
+    import {
+      BrowserMultiFormatReader,
+      BarcodeFormat
+    } from 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.1/+esm';
+
+    const video = document.getElementById('video');
+    const output = document.getElementById('output');
+    const codeList = document.getElementById('codeList');
+    const zoomRange = document.getElementById('zoomRange');
+    const torchBtn = document.getElementById('torchBtn');
+
+    let lastScanned = "";
+    const scannedBarcodes = [];
+    let track;
+    let torchOn = false;
+
+    const codeReader = new BrowserMultiFormatReader();
+
+    async function startScanner() {
+      try {
+        const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+        const selectedDeviceId = devices[0]?.deviceId;
+
+        await codeReader.decodeFromVideoDevice(
+          selectedDeviceId,
+          video,
+          (result, err) => {
+            if (result) {
+              const code = result.getText().trim();
+              if (code && code !== lastScanned && !scannedBarcodes.includes(code)) {
+                lastScanned = code;
+                scannedBarcodes.push(code);
+                addToList(code);
+                output.textContent = `Scanned: ${code}`;
+
+                // Auto-send to Google Sheets
+                google.script.run.withSuccessHandler(() => {
+                  output.textContent = `Saved: ${code}`;
+                  setTimeout(() => {
+                    output.textContent = "Scanning...";
+                    lastScanned = "";
+                  }, 1500);
+                }).recordBarcodes([code]);
+              }
+            }
+          },
+          {
+            formats: [BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.EAN_13]
+          }
+        );
+
+        setTimeout(() => {
+          track = video.srcObject?.getVideoTracks()[0];
+          if (track) {
+            const caps = track.getCapabilities();
+
+            if (caps.zoom) {
+              zoomRange.min = caps.zoom.min;
+              zoomRange.max = caps.zoom.max;
+              zoomRange.step = caps.zoom.step || 0.1;
+              zoomRange.value = caps.zoom.max;
+              zoomRange.disabled = false;
+
+              track.applyConstraints({ advanced: [{ zoom: caps.zoom.max }] });
+            }
+
+            if (caps.torch) {
+              torchBtn.disabled = false;
+            } else {
+              torchBtn.disabled = true;
+              torchBtn.textContent = "Flashlight Unavailable";
+            }
+          }
+        }, 1000);
+
+      } catch (err) {
+        console.error("Camera access error:", err);
+        output.textContent = "Camera not available.";
+      }
+    }
+
+    function addToList(data) {
+      const li = document.createElement("li");
+      li.textContent = data + " ";
+
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "Delete";
+      delBtn.style.marginLeft = "10px";
+      delBtn.style.backgroundColor = "#dc3545";
+      delBtn.style.border = "none";
+      delBtn.style.color = "white";
+      delBtn.style.borderRadius = "4px";
+      delBtn.style.cursor = "pointer";
+
+      const undoBtn = document.createElement("button");
+      undoBtn.textContent = "Undo";
+      undoBtn.style.marginLeft = "10px";
+      undoBtn.style.backgroundColor = "#28a745";
+      undoBtn.style.border = "none";
+      undoBtn.style.color = "white";
+      undoBtn.style.borderRadius = "4px";
+      undoBtn.style.cursor = "pointer";
+      undoBtn.style.display = "none"; // Hidden initially
+
+      delBtn.onclick = () => {
+        google.script.run.withSuccessHandler((msg) => {
+          output.textContent = msg;
+          li.style.textDecoration = "line-through";
+          delBtn.style.display = "none";
+          undoBtn.style.display = "inline-block";
+          lastScanned = ""; // reset scanner to continue
+        }).deleteBarcode(data);
+      };
+
+      undoBtn.onclick = () => {
+        google.script.run.withSuccessHandler((msg) => {
+          output.textContent = msg;
+          li.style.textDecoration = "none";
+          delBtn.style.display = "inline-block";
+          undoBtn.style.display = "none";
+          lastScanned = ""; // reset scanner to continue
+        }).undoDeleteBarcode(data);
+      };
+
+      li.appendChild(delBtn);
+      li.appendChild(undoBtn);
+      codeList.appendChild(li);
+    }
+
+    zoomRange.addEventListener("input", async () => {
+      if (track) {
+        try {
+          await track.applyConstraints({ advanced: [{ zoom: parseFloat(zoomRange.value) }] });
+        } catch (err) {
+          console.error("Zoom error:", err);
+          output.textContent = "Zoom error.";
+        }
+      }
+    });
+
+    torchBtn.addEventListener("click", async () => {
+      if (track) {
+        try {
+          torchOn = !torchOn;
+          await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+          torchBtn.textContent = torchOn ? "Turn Off Flashlight" : "Turn On Flashlight";
+        } catch (err) {
+          console.error("Torch error:", err);
+          output.textContent = "Torch error.";
+        }
+      }
+    });
+
+    startScanner();
+  </script>
+</body>
+</html>
+
